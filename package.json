@@ -1,0 +1,258 @@
+{
+  "name": "ads-copilot-integration",
+  "displayName": "GitHub Copilot for Azure Data Studio",
+  "description": "GitHub Copilot integration for Azure Data Studio – inline SQL completions, chat assistance, query explanation and generation.",
+  "version": "0.1.0",
+  "publisher": "RatherFancyCat",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/RatherFancyCat/ADS-Copilot-Integratioon"
+  },
+  "engines": {
+    "azdata": ">=1.40.0",
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "AI",
+    "Other"
+  ],
+  "keywords": [
+    "copilot",
+    "sql",
+    "azure data studio",
+    "ai",
+    "completion"
+  ],
+  "icon": "resources/icon.png",
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onLanguage:sql",
+    "onLanguage:pgsql",
+    "onLanguage:mysql",
+    "onView:ads-copilot-chat",
+    "onCommand:ads-copilot.openChat",
+    "onCommand:ads-copilot.explainQuery",
+    "onCommand:ads-copilot.generateQuery",
+    "onCommand:ads-copilot.fixQuery",
+    "onCommand:ads-copilot.optimizeQuery"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "ads-copilot.openChat",
+        "title": "Open Copilot Chat",
+        "category": "ADS Copilot",
+        "icon": "$(comment-discussion)"
+      },
+      {
+        "command": "ads-copilot.explainQuery",
+        "title": "Explain Query",
+        "category": "ADS Copilot",
+        "icon": "$(info)"
+      },
+      {
+        "command": "ads-copilot.generateQuery",
+        "title": "Generate SQL from Description",
+        "category": "ADS Copilot",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "ads-copilot.fixQuery",
+        "title": "Fix SQL Error",
+        "category": "ADS Copilot",
+        "icon": "$(wrench)"
+      },
+      {
+        "command": "ads-copilot.optimizeQuery",
+        "title": "Optimize Query",
+        "category": "ADS Copilot",
+        "icon": "$(rocket)"
+      },
+      {
+        "command": "ads-copilot.insertSuggestion",
+        "title": "Insert Copilot Suggestion",
+        "category": "ADS Copilot"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "submenu": "ads-copilot.editorMenu",
+          "group": "ads-copilot",
+          "when": "editorLangId =~ /sql|pgsql|mysql/"
+        }
+      ],
+      "ads-copilot.editorMenu": [
+        {
+          "command": "ads-copilot.explainQuery",
+          "group": "1_explain"
+        },
+        {
+          "command": "ads-copilot.generateQuery",
+          "group": "1_explain"
+        },
+        {
+          "command": "ads-copilot.fixQuery",
+          "group": "2_fix"
+        },
+        {
+          "command": "ads-copilot.optimizeQuery",
+          "group": "2_fix"
+        },
+        {
+          "command": "ads-copilot.openChat",
+          "group": "3_chat"
+        }
+      ]
+    },
+    "submenus": [
+      {
+        "id": "ads-copilot.editorMenu",
+        "label": "Copilot"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "ads-copilot.openChat",
+        "key": "ctrl+shift+i",
+        "mac": "cmd+shift+i",
+        "when": "editorLangId =~ /sql|pgsql|mysql/"
+      },
+      {
+        "command": "ads-copilot.explainQuery",
+        "key": "ctrl+shift+e",
+        "mac": "cmd+shift+e",
+        "when": "editorLangId =~ /sql|pgsql|mysql/ && editorHasSelection"
+      }
+    ],
+    "configuration": {
+      "title": "GitHub Copilot for ADS",
+      "properties": {
+        "ads-copilot.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable GitHub Copilot integration in Azure Data Studio."
+        },
+        "ads-copilot.inlineCompletions": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable inline SQL completions powered by Copilot."
+        },
+        "ads-copilot.includeSchemaContext": {
+          "type": "boolean",
+          "default": true,
+          "description": "Include active connection's schema information in Copilot prompts for more accurate suggestions."
+        },
+        "ads-copilot.model": {
+          "type": "string",
+          "default": "gpt-4o",
+          "enum": [
+            "gpt-4o",
+            "gpt-4o-mini",
+            "gpt-4",
+            "gpt-3.5-turbo",
+            "claude-3-5-sonnet"
+          ],
+          "description": "Preferred language model for Copilot suggestions."
+        },
+        "ads-copilot.maxTokens": {
+          "type": "number",
+          "default": 1024,
+          "minimum": 64,
+          "maximum": 4096,
+          "description": "Maximum number of tokens for Copilot completions."
+        },
+        "ads-copilot.codeLens": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show Copilot CodeLens actions above SQL queries."
+        },
+        "ads-copilot.logLevel": {
+          "type": "string",
+          "default": "info",
+          "enum": [
+            "error",
+            "warn",
+            "info",
+            "debug"
+          ],
+          "description": "Log level for ADS Copilot extension."
+        }
+      }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "ads-copilot-sidebar",
+          "title": "Copilot",
+          "icon": "resources/copilot.svg"
+        }
+      ]
+    },
+    "views": {
+      "ads-copilot-sidebar": [
+        {
+          "type": "webview",
+          "id": "ads-copilot-chat",
+          "name": "Chat",
+          "when": "ads-copilot.active"
+        }
+      ]
+    },
+    "chatParticipants": [
+      {
+        "id": "ads-copilot.sql",
+        "name": "sql",
+        "fullName": "ADS SQL Copilot",
+        "description": "Ask about your SQL queries, schema, and database tasks.",
+        "isSticky": true,
+        "commands": [
+          {
+            "name": "explain",
+            "description": "Explain what a SQL query does"
+          },
+          {
+            "name": "generate",
+            "description": "Generate a SQL query from a description"
+          },
+          {
+            "name": "fix",
+            "description": "Fix issues in your SQL query"
+          },
+          {
+            "name": "optimize",
+            "description": "Suggest performance optimizations for a SQL query"
+          },
+          {
+            "name": "schema",
+            "description": "Describe the current database schema"
+          }
+        ]
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile",
+    "test": "node ./out/test/runTest.js",
+    "lint": "eslint src --ext ts",
+    "package": "vsce package --no-git-tag-version"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/azdata": "^1.40.0",
+    "@types/mocha": "^10.0.1",
+    "@types/node": "16.x",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.4.1",
+    "@typescript-eslint/parser": "^6.4.1",
+    "@vscode/test-electron": "^2.3.4",
+    "eslint": "^8.47.0",
+    "mocha": "^10.2.0",
+    "typescript": "^5.1.6"
+  },
+  "extensionDependencies": []
+}
