@@ -25,6 +25,8 @@ const GITHUB_API_HOSTNAME = 'api.github.com';
 const GITHUB_AUTH_PROVIDER = 'github';
 const GITHUB_SCOPES = ['read:user'];
 const USER_AGENT = 'ADS-Copilot-Integration/0.1.0';
+/** Refresh the cached token this many milliseconds before it expires. */
+const TOKEN_REFRESH_BUFFER_MS = 60_000;
 
 /**
  * Thin wrapper around the GitHub Copilot REST API.
@@ -90,7 +92,7 @@ export class LmService {
     /** Return a valid Copilot API token, refreshing if necessary. */
     private async _getCopilotToken(): Promise<string> {
         const now = Date.now();
-        if (this._tokenCache && this._tokenCache.expiresAt > now + 60_000) {
+        if (this._tokenCache && this._tokenCache.expiresAt > now + TOKEN_REFRESH_BUFFER_MS) {
             return this._tokenCache.token;
         }
 
@@ -142,8 +144,8 @@ export class LmService {
                     try {
                         const parsed = JSON.parse(data) as { token: string; expires_at: number };
                         resolve({ token: parsed.token, expiresAt: parsed.expires_at * 1000 });
-                    } catch {
-                        reject(new Error('Failed to parse Copilot token response'));
+                    } catch (parseErr) {
+                        reject(new Error(`Failed to parse Copilot token response: ${parseErr}`));
                     }
                 });
             });
