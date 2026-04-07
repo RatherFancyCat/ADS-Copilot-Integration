@@ -11,7 +11,7 @@
   },
   "engines": {
     "azdata": ">=1.40.0",
-    "vscode": "^1.85.0"
+    "vscode": "^1.82.0"
   },
   "categories": [
     "AI",
@@ -198,38 +198,7 @@
           "name": "Chat"
         }
       ]
-    },
-    "chatParticipants": [
-      {
-        "id": "ads-copilot.sql",
-        "name": "sql",
-        "fullName": "ADS SQL Copilot",
-        "description": "Ask about your SQL queries, schema, and database tasks.",
-        "isSticky": true,
-        "commands": [
-          {
-            "name": "explain",
-            "description": "Explain what a SQL query does"
-          },
-          {
-            "name": "generate",
-            "description": "Generate a SQL query from a description"
-          },
-          {
-            "name": "fix",
-            "description": "Fix issues in your SQL query"
-          },
-          {
-            "name": "optimize",
-            "description": "Suggest performance optimizations for a SQL query"
-          },
-          {
-            "name": "schema",
-            "description": "Describe the current database schema"
-          }
-        ]
-      }
-    ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
@@ -245,7 +214,7 @@
     "@types/azdata": "^1.40.0",
     "@types/mocha": "^10.0.1",
     "@types/node": "16.x",
-    "@types/vscode": "^1.85.0",
+    "@types/vscode": "^1.82.0",
     "@typescript-eslint/eslint-plugin": "^6.4.1",
     "@typescript-eslint/parser": "^6.4.1",
     "@vscode/test-electron": "^2.3.4",

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { LmService } from '../managers/lmService';
+import { LmService, ModelInfo } from '../managers/lmService';
 import { ConnectionManager } from '../managers/connectionManager';
 import { logger } from '../utils/logger';
 
@@ -9,12 +9,6 @@ const GITHUB_SCOPES = ['read:user'];
 interface ChatMessage {
     role: 'user' | 'assistant' | 'error';
     content: string;
-}
-
-interface ModelInfo {
-    id: string;
-    name: string;
-    family: string;
 }
 
 /**
@@ -175,13 +169,7 @@ export class SidePanelProvider implements vscode.WebviewViewProvider, vscode.Dis
     // ── Models ───────────────────────────────────────────────────────────────
 
     private async _loadModels(): Promise<ModelInfo[]> {
-        try {
-            const models = await vscode.lm.selectChatModels();
-            return models.map((m: vscode.LanguageModelChat) => ({ id: m.id, name: m.name, family: m.family }));
-        } catch (err) {
-            logger.warn('Could not load language models', err);
-            return [];
-        }
+        return this._lmService.listModels();
     }
 
     // ── Chat ─────────────────────────────────────────────────────────────────
