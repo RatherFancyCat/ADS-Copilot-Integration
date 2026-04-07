@@ -161,8 +161,9 @@ export class LmService {
     private _commonHeaders(): Record<string, string> {
         return {
             'User-Agent':             USER_AGENT,
-            'Editor-Version':         `azuredatastudio/${vscode.version}`,
+            'Editor-Version':         `vscode/${vscode.version}`,
             'Editor-Plugin-Version':  `ads-copilot-integration/${PLUGIN_VERSION}`,
+            'Openai-Organization':    'github-copilot',
             'Accept':                 'application/json'
         };
     }
