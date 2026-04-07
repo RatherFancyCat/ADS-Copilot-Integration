@@ -25,6 +25,7 @@ const GITHUB_API_HOSTNAME = 'api.github.com';
 const GITHUB_AUTH_PROVIDER = 'github';
 const GITHUB_SCOPES = ['read:user'];
 const USER_AGENT = 'ADS-Copilot-Integration/0.1.0';
+const PLUGIN_VERSION = '0.1.0';
 /** Refresh the cached token this many milliseconds before it expires. */
 const TOKEN_REFRESH_BUFFER_MS = 60_000;
 
@@ -124,9 +125,8 @@ export class LmService {
                 path: '/copilot_internal/v2/token',
                 method: 'GET',
                 headers: {
-                    'Authorization': `token ${githubToken}`,
-                    'User-Agent': USER_AGENT,
-                    'Accept': 'application/json'
+                    ...this._commonHeaders(),
+                    'Authorization': `token ${githubToken}`
                 }
             };
 
@@ -157,6 +157,16 @@ export class LmService {
 
     // ── HTTP helpers ──────────────────────────────────────────────────────────
 
+    /** Headers required on every Copilot API request. */
+    private _commonHeaders(): Record<string, string> {
+        return {
+            'User-Agent':             USER_AGENT,
+            'Editor-Version':         `azuredatastudio/${vscode.version}`,
+            'Editor-Plugin-Version':  `ads-copilot-integration/${PLUGIN_VERSION}`,
+            'Accept':                 'application/json'
+        };
+    }
+
     private _httpsGet(hostname: string, path: string, bearerToken: string): Promise<string> {
         return new Promise((resolve, reject) => {
             const options: https.RequestOptions = {
@@ -164,9 +174,8 @@ export class LmService {
                 path,
                 method: 'GET',
                 headers: {
-                    'Authorization': `Bearer ${bearerToken}`,
-                    'User-Agent': USER_AGENT,
-                    'Accept': 'application/json'
+                    ...this._commonHeaders(),
+                    'Authorization': `Bearer ${bearerToken}`
                 }
             };
 
@@ -195,11 +204,10 @@ export class LmService {
                 path,
                 method: 'POST',
                 headers: {
+                    ...this._commonHeaders(),
                     'Authorization': `Bearer ${bearerToken}`,
-                    'User-Agent': USER_AGENT,
                     'Content-Type': 'application/json',
-                    'Content-Length': Buffer.byteLength(bodyStr),
-                    'Accept': 'application/json'
+                    'Content-Length': Buffer.byteLength(bodyStr)
                 }
             };
 
