@@ -35,7 +35,7 @@ export class SidePanelProvider implements vscode.WebviewViewProvider, vscode.Dis
         private readonly _lmService: LmService,
         private readonly _connectionManager: ConnectionManager
     ) {
-        // Re-initialise whenever the user's GitHub session changes
+        // Re-initialize whenever the user's GitHub session changes
         this._disposables.push(
             vscode.authentication.onDidChangeSessions(async (e: vscode.AuthenticationSessionsChangeEvent) => {
                 if (e.provider.id === GITHUB_AUTH_PROVIDER) {
@@ -636,12 +636,13 @@ export class SidePanelProvider implements vscode.WebviewViewProvider, vscode.Dis
 
     function formatContent(raw) {
       let html = escHtml(raw);
-      // Code fences
-      html = html.replace(/\`\`\`(?:[a-zA-Z]*)\\n([\\s\\S]*?)\\n?\`\`\`/g, '<pre><code>$1</code></pre>');
+      // Code fences — $1 is already HTML-escaped by escHtml above, so insertion is safe
+      html = html.replace(/\`\`\`(?:[a-zA-Z]*)\\n([\\s\\S]*?)\\n?\`\`\`/g,
+        (_, code) => '<pre><code>' + code + '</code></pre>');
       // Inline code
-      html = html.replace(/\`([^\`\\n]+)\`/g, '<code>$1</code>');
+      html = html.replace(/\`([^\`\\n]+)\`/g, (_, code) => '<code>' + code + '</code>');
       // Bold
-      html = html.replace(/\\*\\*([^*]+)\\*\\*/g, '<strong>$1</strong>');
+      html = html.replace(/\\*\\*([^*]+)\\*\\*/g, (_, text) => '<strong>' + text + '</strong>');
       // Line breaks (outside pre)
       html = html.replace(/\\n/g, '<br>');
       return html;
@@ -773,8 +774,10 @@ export class SidePanelProvider implements vscode.WebviewViewProvider, vscode.Dis
           break;
 
         case 'cleared':
-          messagesEl.innerHTML = '';
-          messagesEl.appendChild(emptyState);
+          // Remove all message bubbles while keeping the emptyState element
+          Array.from(messagesEl.children).forEach(child => {
+            if (child !== emptyState) { messagesEl.removeChild(child); }
+          });
           emptyState.classList.remove('hidden');
           break;
       }
