@@ -24,7 +24,6 @@
     "ai",
     "completion"
   ],
-  "icon": "resources/icon.png",
   "main": "./out/extension.js",
   "activationEvents": [
     "onLanguage:sql",
