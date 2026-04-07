@@ -53,7 +53,7 @@ export class SidePanelProvider implements vscode.WebviewViewProvider, vscode.Dis
             localResourceRoots: [this._extensionUri]
         };
 
-        webviewView.webview.html = this._buildHtml();
+        webviewView.webview.html = this._buildHtml(webviewView.webview);
 
         webviewView.webview.onDidReceiveMessage(
             (msg: { type: string; text?: string; modelId?: string }) => this._handleMessage(msg),
@@ -226,7 +226,7 @@ export class SidePanelProvider implements vscode.WebviewViewProvider, vscode.Dis
 
     // ── HTML ─────────────────────────────────────────────────────────────────
 
-    private _buildHtml(): string {
+    private _buildHtml(webview: vscode.WebviewView['webview']): string {
         const nonce = this._getNonce();
 
         return /* html */`<!DOCTYPE html>
@@ -234,6 +234,7 @@ export class SidePanelProvider implements vscode.WebviewViewProvider, vscode.Dis
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <base href="${webview.cspSource}">
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'none'; img-src https://github.com https://avatars.githubusercontent.com; style-src 'unsafe-inline'; script-src 'nonce-${nonce}';">
   <title>Copilot</title>
