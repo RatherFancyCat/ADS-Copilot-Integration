@@ -26,6 +26,7 @@
   ],
   "main": "./out/extension.js",
   "activationEvents": [
+    "onStartupFinished",
     "onLanguage:sql",
     "onLanguage:pgsql",
     "onLanguage:mysql",
@@ -194,8 +195,7 @@
         {
           "type": "webview",
           "id": "ads-copilot-chat",
-          "name": "Chat",
-          "when": "ads-copilot.active"
+          "name": "Chat"
         }
       ]
     },

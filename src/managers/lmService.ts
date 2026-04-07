@@ -53,6 +53,22 @@ export class LmService {
     }
 
     /**
+     * Select a specific model by ID (as returned by vscode.lm.selectChatModels).
+     * Falls back to the default selection when the requested model is unavailable.
+     */
+    private async selectModelById(modelId: string): Promise<vscode.LanguageModelChat | undefined> {
+        try {
+            const models = await vscode.lm.selectChatModels({ id: modelId });
+            if (models.length > 0) {
+                return models[0];
+            }
+        } catch {
+            // fall through to default selection
+        }
+        return this.selectModel();
+    }
+
+    /**
      * Build the system prompt, optionally including schema context from the
      * active ADS database connection.
      */
@@ -79,13 +95,17 @@ export class LmService {
 
     /**
      * Send a chat request to the language model and collect the full streamed response.
+     * An optional `modelId` overrides the default model selection.
      */
     async chat(
         userMessage: string,
         token: vscode.CancellationToken,
-        includeSchema = true
+        includeSchema = true,
+        modelId?: string
     ): Promise<CopilotResponse> {
-        const model = await this.selectModel();
+        const model = modelId
+            ? await this.selectModelById(modelId)
+            : await this.selectModel();
         if (!model) {
             throw new Error(
                 'No GitHub Copilot language model is available. ' +

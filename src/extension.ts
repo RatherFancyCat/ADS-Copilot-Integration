@@ -7,6 +7,7 @@ import { InlineCompletionProvider } from './providers/inlineCompletionProvider';
 import { SqlCodeLensProvider } from './providers/codeLensProvider';
 import { registerChatParticipant } from './providers/chatParticipant';
 import { ChatPanel } from './ui/chatPanel';
+import { SidePanelProvider } from './ui/sidePanelProvider';
 
 const SQL_LANGUAGES = ['sql', 'pgsql', 'mysql'];
 
@@ -51,6 +52,17 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     // ── Chat participant (requires Copilot Chat ≥ 0.12 / VS Code 1.85+) ───────
     const chatParticipantDisposable = registerChatParticipant(context, lmService, connectionManager);
     context.subscriptions.push(chatParticipantDisposable);
+
+    // ── Side panel (activity-bar WebviewView) ──────────────────────────────
+    const sidePanelProvider = new SidePanelProvider(context.extensionUri, lmService, connectionManager);
+    context.subscriptions.push(
+        vscode.window.registerWebviewViewProvider(
+            SidePanelProvider.VIEW_ID,
+            sidePanelProvider,
+            { webviewOptions: { retainContextWhenHidden: true } }
+        ),
+        sidePanelProvider
+    );
 
     // ── Commands ───────────────────────────────────────────────────────────────
     context.subscriptions.push(
