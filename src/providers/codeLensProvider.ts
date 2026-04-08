@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { LmService } from '../managers/lmService';
 import { logger } from '../utils/logger';
 import { codeLensEnabled } from '../utils/config';
-import { splitStatements, extractStatementAtOffset } from '../utils/sqlUtils';
+import { splitStatements, extractStatementAtOffset, basename } from '../utils/sqlUtils';
 
 /**
  * Adds Copilot action lenses above SQL queries.

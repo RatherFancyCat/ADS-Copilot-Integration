@@ -8,6 +8,7 @@ import { SqlCodeLensProvider } from './providers/codeLensProvider';
 import { registerChatParticipant } from './providers/chatParticipant';
 import { ChatPanel } from './ui/chatPanel';
 import { SidePanelProvider } from './ui/sidePanelProvider';
+import { basename } from './utils/sqlUtils';
 
 const SQL_LANGUAGES = ['sql', 'pgsql', 'mysql'];
 
@@ -122,6 +123,28 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
                 const response = await lmService.optimizeQuery(sql, token);
                 showResultPanel(context.extensionUri, 'Query Optimisation', response.text, response.model);
             });
+        }),
+
+        vscode.commands.registerCommand('ads-copilot.addSelectionToChat', async () => {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) {
+                vscode.window.showWarningMessage('No active SQL editor open.');
+                return;
+            }
+            const sql = editor.selection.isEmpty
+                ? editor.document.getText().trim()
+                : editor.document.getText(editor.selection).trim();
+            if (!sql) {
+                vscode.window.showWarningMessage('No SQL content to add to chat.');
+                return;
+            }
+            const filename = basename(editor.document.fileName);
+            sidePanelProvider.addSelectionToChat(sql, filename);
+            await vscode.commands.executeCommand('ads-copilot-chat.focus');
+        }),
+
+        vscode.commands.registerCommand('ads-copilot.insertSuggestion', (sql?: string) => {
+            if (sql) { insertOrShowSql(sql, 'Copilot'); }
         })
     );
 

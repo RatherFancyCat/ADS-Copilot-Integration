@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
-import { LmService, ModelInfo } from '../managers/lmService';
+import { LmService, ModelInfo, CopilotResponse } from '../managers/lmService';
 import { ConnectionManager } from '../managers/connectionManager';
 import { logger } from '../utils/logger';
+import { basename } from '../utils/sqlUtils';
 
 const GITHUB_AUTH_PROVIDER = 'github';
 const GITHUB_SCOPES = ['read:user'];
@@ -64,7 +65,13 @@ export class SidePanelProvider implements vscode.WebviewViewProvider, vscode.Dis
 
     // ── Message handling ─────────────────────────────────────────────────────
 
-    private async _handleMessage(message: { type: string; text?: string; modelId?: string }): Promise<void> {
+    private async _handleMessage(message: {
+        type: string;
+        text?: string;
+        modelId?: string;
+        mode?: 'selection' | 'document';
+        code?: string;
+    }): Promise<void> {
         switch (message.type) {
             case 'ready':
                 await this._initialize();
@@ -84,6 +91,15 @@ export class SidePanelProvider implements vscode.WebviewViewProvider, vscode.Dis
             case 'clearHistory':
                 this._history = [];
                 this._postMessage({ type: 'cleared' });
+                break;
+            case 'requestEditorContext':
+                this._handleRequestEditorContext(message.mode ?? 'selection');
+                break;
+            case 'insertCode':
+                this._handleInsertCode(message.code ?? '');
+                break;
+            case 'copyCode':
+                vscode.env.clipboard.writeText(message.code ?? '');
                 break;
         }
     }
@@ -172,8 +188,6 @@ export class SidePanelProvider implements vscode.WebviewViewProvider, vscode.Dis
         return this._lmService.listModels();
     }
 
-    // ── Chat ─────────────────────────────────────────────────────────────────
-
     private async _processUserMessage(text: string): Promise<void> {
         const trimmed = text.trim();
         if (!trimmed) { return; }
@@ -183,6 +197,11 @@ export class SidePanelProvider implements vscode.WebviewViewProvider, vscode.Dis
                 type: 'message',
                 message: { role: 'error', content: 'Please sign in with GitHub to use Copilot.' }
             });
+            return;
+        }
+
+        if (trimmed.startsWith('/')) {
+            await this._handleSlashCommand(trimmed);
             return;
         }
 
@@ -207,6 +226,102 @@ export class SidePanelProvider implements vscode.WebviewViewProvider, vscode.Dis
             cts.dispose();
             this._postMessage({ type: 'doneThinking' });
         }
+    }
+
+    private async _handleSlashCommand(text: string): Promise<void> {
+        const spaceIdx = text.indexOf(' ');
+        const cmd = (spaceIdx === -1 ? text.slice(1) : text.slice(1, spaceIdx)).toLowerCase();
+        const rest = spaceIdx === -1 ? '' : text.slice(spaceIdx + 1).trim();
+
+        const userMsg: ChatMessage = { role: 'user', content: text };
+        this._history.push(userMsg);
+        this._postMessage({ type: 'message', message: userMsg });
+        this._postMessage({ type: 'thinking' });
+
+        const getActiveSql = (): string => {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) { return ''; }
+            return editor.selection.isEmpty
+                ? editor.document.getText().trim()
+                : editor.document.getText(editor.selection).trim();
+        };
+
+        const cts = new vscode.CancellationTokenSource();
+        try {
+            const response = await (async (): Promise<CopilotResponse> => {
+                switch (cmd) {
+                    case 'explain': {
+                        const sql = rest || getActiveSql();
+                        if (!sql) { throw new Error('No SQL to explain. Select a query in the editor, or pass SQL after /explain.'); }
+                        return this._lmService.explainQuery(sql, cts.token);
+                    }
+                    case 'fix': {
+                        const sql = rest || getActiveSql();
+                        if (!sql) { throw new Error('No SQL to fix. Select a query in the editor, or pass SQL after /fix.'); }
+                        return this._lmService.fixQuery(sql, '', cts.token);
+                    }
+                    case 'optimize':
+                    case 'optimise': {
+                        const sql = rest || getActiveSql();
+                        if (!sql) { throw new Error('No SQL to optimise. Select a query in the editor, or pass SQL after /optimize.'); }
+                        return this._lmService.optimizeQuery(sql, cts.token);
+                    }
+                    case 'generate': {
+                        if (!rest) { throw new Error('Please describe the query after /generate — e.g. /generate list all customers from the last 30 days.'); }
+                        return this._lmService.generateQuery(rest, cts.token);
+                    }
+                    default:
+                        throw new Error(`Unknown command /${cmd}. Available: /explain, /fix, /optimize, /generate.`);
+                }
+            })();
+
+            const assistantMsg: ChatMessage = { role: 'assistant', content: response.text };
+            this._history.push(assistantMsg);
+            this._postMessage({ type: 'message', message: assistantMsg });
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            logger.error('SidePanel slash command error', err);
+            const errorMsg: ChatMessage = { role: 'error', content: msg };
+            this._history.push(errorMsg);
+            this._postMessage({ type: 'message', message: errorMsg });
+        } finally {
+            cts.dispose();
+            this._postMessage({ type: 'doneThinking' });
+        }
+    }
+
+    private _handleRequestEditorContext(mode: 'selection' | 'document'): void {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+            this._postMessage({ type: 'contextError', message: 'No active editor open.' });
+            return;
+        }
+        const sql = mode === 'selection' && !editor.selection.isEmpty
+            ? editor.document.getText(editor.selection).trim()
+            : editor.document.getText().trim();
+        if (!sql) {
+            this._postMessage({ type: 'contextError', message: 'No SQL content found in the editor.' });
+            return;
+        }
+        const filename = basename(editor.document.fileName);
+        this._postMessage({ type: 'setContext', sql, filename });
+    }
+
+    private _handleInsertCode(code: string): void {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+            vscode.env.clipboard.writeText(code);
+            vscode.window.showInformationMessage('Copilot: No active editor — code copied to clipboard.');
+            return;
+        }
+        editor.edit(eb => {
+            if (editor.selection.isEmpty) {
+                eb.insert(editor.selection.active, code);
+            } else {
+                eb.replace(editor.selection, code);
+            }
+        });
+        vscode.window.setStatusBarMessage('$(sparkle) Copilot code inserted', 3000);
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
@@ -531,6 +646,84 @@ export class SidePanelProvider implements vscode.WebviewViewProvider, vscode.Dis
     }
     #btn-send:hover { background: var(--btn-hover); }
     #btn-send:disabled, #btn-clear:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    /* ── Context bar ── */
+    #context-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      background: var(--vscode-editor-selectionHighlightBackground, var(--assist-bubble));
+      border-bottom: 1px solid var(--border);
+      font-size: 11px;
+      flex-shrink: 0;
+    }
+    #context-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-muted); }
+    #context-label strong { color: var(--fg); }
+    #btn-ctx-dismiss {
+      background: transparent;
+      color: var(--fg-muted);
+      font-size: 16px;
+      line-height: 1;
+      padding: 0 4px;
+      border: none;
+      flex-shrink: 0;
+    }
+    #btn-ctx-dismiss:hover { color: var(--fg); }
+
+    /* ── Context action buttons ── */
+    #input-ctx-btns { display: flex; gap: 4px; }
+    .btn-ctx {
+      background: transparent;
+      color: var(--fg-muted);
+      font-size: 11px;
+      padding: 2px 7px;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+    }
+    .btn-ctx:hover { background: var(--assist-bubble); color: var(--fg); }
+
+    /* ── Quick action chips ── */
+    #quick-actions {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-top: 10px;
+      pointer-events: all;
+    }
+    .chip {
+      background: var(--btn2-bg);
+      color: var(--btn2-fg);
+      border: 1px solid var(--border);
+      padding: 3px 10px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-family: var(--vscode-editor-font-family, monospace);
+      cursor: pointer;
+    }
+    .chip:hover { background: var(--btn2-hover); }
+
+    /* ── Code block with Insert/Copy actions ── */
+    .code-block { margin: 4px 0; }
+    .code-block pre { margin: 0; border-radius: 5px 5px 0 0; }
+    .code-actions {
+      display: flex;
+      gap: 4px;
+      padding: 3px 6px;
+      background: var(--code-bg);
+      border-top: 1px solid var(--border);
+      border-radius: 0 0 5px 5px;
+    }
+    .btn-insert, .btn-copy {
+      background: var(--btn2-bg);
+      color: var(--btn2-fg);
+      padding: 2px 8px;
+      font-size: 11px;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+    }
+    .btn-insert:hover, .btn-copy:hover { background: var(--btn2-hover); }
   </style>
 </head>
 <body>
@@ -569,11 +762,26 @@ export class SidePanelProvider implements vscode.WebviewViewProvider, vscode.Dis
       <div id="empty-state">
         <div class="icon">✨</div>
         <strong>Ask Copilot</strong>
-        <p>Ask anything about SQL, or try <code>/explain</code>, <code>/generate</code>, <code>/fix</code>, or <code>/optimize</code>.</p>
+        <p>Ask anything about SQL, or use a quick action:</p>
+        <div id="quick-actions">
+          <button class="chip" data-cmd="/explain">/explain</button>
+          <button class="chip" data-cmd="/fix">/fix</button>
+          <button class="chip" data-cmd="/optimize">/optimize</button>
+          <button class="chip" data-cmd="/generate ">/generate</button>
+        </div>
       </div>
     </div>
 
+    <div id="context-bar" class="hidden">
+      <span id="context-label">📎 <strong id="context-filename"></strong></span>
+      <button id="btn-ctx-dismiss" title="Remove attachment">×</button>
+    </div>
+
     <div id="input-area">
+      <div id="input-ctx-btns">
+        <button class="btn-ctx" id="btn-use-selection" title="Attach selected SQL from the active editor">📋 Use selection</button>
+        <button class="btn-ctx" id="btn-use-file" title="Attach the whole file from the active editor">📄 Use file</button>
+      </div>
       <textarea id="input" placeholder="Ask Copilot about SQL…" rows="1"></textarea>
       <div id="input-actions">
         <span id="input-hint">Enter to send · Shift+Enter for new line</span>
@@ -610,6 +818,18 @@ export class SidePanelProvider implements vscode.WebviewViewProvider, vscode.Dis
 
     let thinkingEl = null;
     let busy       = false;
+    let _attachedCtx = null; // { sql: string, filename: string } | null
+
+    // Code block registry (for Insert/Copy actions)
+    let _cbIdx = 0;
+    const _cbStore = {};
+
+    // Context bar elements
+    const contextBar      = document.getElementById('context-bar');
+    const contextFilename = document.getElementById('context-filename');
+    const btnCtxDismiss   = document.getElementById('btn-ctx-dismiss');
+    const btnUseSelection = document.getElementById('btn-use-selection');
+    const btnUseFile      = document.getElementById('btn-use-file');
 
     /* ── View switching ── */
     function showView(name) {
@@ -624,15 +844,29 @@ export class SidePanelProvider implements vscode.WebviewViewProvider, vscode.Dis
     }
 
     function formatContent(raw) {
-      let html = escHtml(raw);
-      // Code fences — $1 is already HTML-escaped by escHtml above, so insertion is safe
-      html = html.replace(/\`\`\`(?:[a-zA-Z]*)\\n([\\s\\S]*?)\\n?\`\`\`/g,
-        (_, code) => '<pre><code>' + code + '</code></pre>');
+      // Step 1: extract code fences before HTML-escaping (preserves raw code for Insert)
+      const processed = raw.replace(/\`\`\`(?:[a-zA-Z]*)\\n([\\s\\S]*?)\\n?\`\`\`/g, function(_, code) {
+        const i = _cbIdx++;
+        _cbStore[i] = code;
+        return '__CB' + i + '__';
+      });
+      // Step 2: HTML-escape the remainder
+      let html = escHtml(processed);
+      // Step 3: restore code blocks with Insert/Copy action buttons
+      html = html.replace(/__CB(\\d+)__/g, function(_, iStr) {
+        const i = parseInt(iStr, 10);
+        const rawCode = _cbStore[i] !== undefined ? _cbStore[i] : '';
+        return '<div class="code-block"><pre><code>' + escHtml(rawCode) + '</code></pre>' +
+               '<div class="code-actions">' +
+               '<button class="btn-insert" data-idx="' + i + '">\u21b5 Insert</button>' +
+               '<button class="btn-copy" data-idx="' + i + '">\u2398 Copy</button>' +
+               '</div></div>';
+      });
       // Inline code
-      html = html.replace(/\`([^\`\\n]+)\`/g, (_, code) => '<code>' + code + '</code>');
+      html = html.replace(/\`([^\`\\n]+)\`/g, function(_, c) { return '<code>' + c + '</code>'; });
       // Bold
-      html = html.replace(/\\*\\*([^*]+)\\*\\*/g, (_, text) => '<strong>' + text + '</strong>');
-      // Line breaks (outside pre)
+      html = html.replace(/\\*\\*([^*]+)\\*\\*/g, function(_, t) { return '<strong>' + t + '</strong>'; });
+      // Newlines
       html = html.replace(/\\n/g, '<br>');
       return html;
     }
@@ -668,9 +902,16 @@ export class SidePanelProvider implements vscode.WebviewViewProvider, vscode.Dis
     function sendMessage() {
       const text = inputEl.value.trim();
       if (!text || busy) { return; }
+      let fullText = text;
+      // Append attached SQL context (skip for slash commands)
+      if (_attachedCtx && !text.startsWith('/')) {
+        fullText = text + '\\n\\n\`\`\`sql\\n' + _attachedCtx.sql + '\\n\`\`\`';
+      }
+      _attachedCtx = null;
+      contextBar.classList.add('hidden');
       inputEl.value = '';
       inputEl.style.height = 'auto';
-      vscode.postMessage({ type: 'userMessage', text });
+      vscode.postMessage({ type: 'userMessage', text: fullText });
     }
 
     /* ── Models ── */
@@ -723,6 +964,59 @@ export class SidePanelProvider implements vscode.WebviewViewProvider, vscode.Dis
       inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
     });
 
+    /* ── Code block Insert/Copy (event delegation) ── */
+    messagesEl.addEventListener('click', function(e) {
+      const btn = e.target && e.target.closest && e.target.closest('.btn-insert, .btn-copy');
+      if (!btn) { return; }
+      const idx = parseInt(btn.dataset.idx, 10);
+      const code = _cbStore[idx];
+      if (code === undefined) { return; }
+      if (btn.classList.contains('btn-insert')) {
+        vscode.postMessage({ type: 'insertCode', code: code });
+        btn.textContent = '\u2713 Inserted';
+        setTimeout(function() { btn.innerHTML = '\u21b5 Insert'; }, 1500);
+      } else {
+        const doFallback = function() {
+          vscode.postMessage({ type: 'copyCode', code: code });
+          btn.textContent = '\u2713 Copied';
+          setTimeout(function() { btn.innerHTML = '\u2398 Copy'; }, 1500);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(code).then(function() {
+            btn.textContent = '\u2713 Copied';
+            setTimeout(function() { btn.innerHTML = '\u2398 Copy'; }, 1500);
+          }).catch(doFallback);
+        } else {
+          doFallback();
+        }
+      }
+    });
+
+    /* ── Context attachment ── */
+    btnCtxDismiss.addEventListener('click', function() {
+      _attachedCtx = null;
+      contextBar.classList.add('hidden');
+    });
+
+    btnUseSelection.addEventListener('click', function() {
+      vscode.postMessage({ type: 'requestEditorContext', mode: 'selection' });
+    });
+
+    btnUseFile.addEventListener('click', function() {
+      vscode.postMessage({ type: 'requestEditorContext', mode: 'document' });
+    });
+
+    /* ── Quick action chips ── */
+    document.getElementById('quick-actions').addEventListener('click', function(e) {
+      const chip = e.target.closest && e.target.closest('.chip');
+      if (!chip) { return; }
+      const cmd = chip.dataset.cmd || '';
+      if (!cmd) { return; }
+      inputEl.value = cmd;
+      inputEl.focus();
+      inputEl.dispatchEvent(new Event('input'));
+    });
+
     /* ── Messages from extension ── */
     window.addEventListener('message', event => {
       const data = event.data;
@@ -769,6 +1063,17 @@ export class SidePanelProvider implements vscode.WebviewViewProvider, vscode.Dis
           });
           emptyState.classList.remove('hidden');
           break;
+
+        case 'setContext':
+          _attachedCtx = { sql: data.sql, filename: data.filename };
+          contextFilename.textContent = data.filename;
+          contextBar.classList.remove('hidden');
+          inputEl.focus();
+          break;
+
+        case 'contextError':
+          // Silently ignore; user will notice nothing happened
+          break;
       }
     });
 
@@ -777,6 +1082,11 @@ export class SidePanelProvider implements vscode.WebviewViewProvider, vscode.Dis
   </script>
 </body>
 </html>`;
+    }
+
+    /** Attach a SQL snippet as context in the side panel input for the next message. */
+    addSelectionToChat(sql: string, filename: string): void {
+        this._postMessage({ type: 'setContext', sql, filename });
     }
 
     dispose(): void {
