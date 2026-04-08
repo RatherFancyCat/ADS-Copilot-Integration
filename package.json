@@ -4,6 +4,7 @@
   "description": "GitHub Copilot integration for Azure Data Studio – inline SQL completions, chat assistance, query explanation and generation.",
   "version": "0.1.0",
   "publisher": "RatherFancyCat",
+  "icon": "resources/copilot.png",
   "license": "MIT",
   "repository": {
     "type": "git",
