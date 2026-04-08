@@ -1,151 +1,251 @@
 # GitHub Copilot for Azure Data Studio
 
-An Azure Data Studio extension that brings **GitHub Copilot** AI assistance directly into your SQL workflow — inline completions, a chat panel, query explanation, generation, fixing, and optimisation.
+An Azure Data Studio extension that brings **GitHub Copilot** AI assistance directly into your SQL workflow with intelligent completions, interactive chat, and powerful query tools.
 
 ---
 
-## Features
+## ✨ Features
 
-### ✨ Inline SQL Completions
-As you type SQL, Copilot suggests continuations as ghost text. Press **Tab** to accept a suggestion.
+### 🤖 Interactive Chat Side Panel
+A dedicated Copilot chat interface in the activity bar for conversational SQL assistance:
 
-Inline completions are:
-- Context-aware — the full SQL file is included as context
-- Schema-aware — the active database connection's table/column names are injected (configurable)
-- Debounced so they don't fire on every keystroke
+- **Multi-model support** — select from GPT-4o, GPT-4o mini, Claude 3.5 Sonnet, and more
+- **Context-aware conversations** — automatically includes active database schema
+- **Add to Chat** — send selected SQL or entire documents to the chat with `Ctrl+Shift+/`
+- **Code actions** — insert generated SQL directly into your editor or copy to clipboard
+- **GitHub authentication** — secure access to language models
+- **Persistent history** — maintain conversation context across sessions
 
-### 💬 Copilot Chat Participant (`@sql`)
-When GitHub Copilot Chat is installed, use `@sql` in the Copilot Chat panel:
+### ⚡ Inline SQL Completions
+AI-powered ghost text suggestions as you type:
 
-| Command | Description |
-|---------|-------------|
-| `@sql /explain` | Explain the selected or provided SQL query |
-| `@sql /generate` | Generate SQL from a natural-language description |
-| `@sql /fix` | Fix errors in a SQL query |
-| `@sql /optimize` | Suggest performance improvements |
-| `@sql /schema` | Show the active database schema |
-| `@sql <question>` | Ask any SQL question |
+- **Context-aware** — analyzes your entire SQL file for relevant completions
+- **Schema-aware** — leverages active database connection metadata (tables, columns, relationships)
+- **Smart debouncing** — only triggers when you pause typing
+- **Tab to accept** — seamless integration with your existing workflow
 
-### 🔍 Query Explanation
-Select a SQL query and run **ADS Copilot: Explain Query** to get a plain-English explanation in a side panel.
+### 🔍 CodeLens Actions
+Quick actions above each SQL statement:
 
-### 🛠️ Query Generation
-Run **ADS Copilot: Generate SQL from Description**, type a description, and the generated SQL is inserted at your cursor.
-
-### 🔧 Query Fixing
-Select a broken query and run **ADS Copilot: Fix SQL Error**. Optionally paste the error message for a more accurate fix.
-
-### 🚀 Query Optimisation
-Select a query and run **ADS Copilot: Optimise Query** to get performance improvement suggestions.
-
-### 🔵 CodeLens Actions
-Above each SQL statement you'll see Copilot action lenses:
-
-```
-✨ Explain  🚀 Optimise  🔧 Fix
-SELECT id, name FROM customers WHERE ...
+```sql
+✨ Explain  🚀 Optimize  🔧 Fix
+SELECT id, name FROM customers WHERE created_at > '2026-01-01'
 ```
 
-### 💬 Standalone Chat Panel
-If GitHub Copilot Chat isn't installed, use **ADS Copilot: Open Chat** (or `Ctrl+Shift+I`) to open a built-in chat panel backed by the VS Code Language Model API.
+Click any CodeLens to:
+- **Explain** — get plain-English explanations of complex queries
+- **Optimize** — receive performance improvement suggestions
+- **Fix** — automatically resolve syntax or logical errors
+
+### 🛠️ SQL Commands
+
+| Command | Shortcut | Description |
+|---------|----------|-------------|
+| **Explain Query** | `Ctrl+Shift+E` | Explain selected SQL in plain English |
+| **Generate SQL** | — | Create SQL from natural language description |
+| **Fix SQL Error** | — | Fix syntax errors with optional error message context |
+| **Optimize Query** | — | Get performance improvement recommendations |
+| **Add to Chat** | `Ctrl+Shift+/` | Send selection or document to chat panel |
+
+### 📋 Context Menu Integration
+Right-click in any SQL file to access the **Copilot** submenu with all available actions.
+
+### 📊 Status Bar Indicator
+A `$(sparkle) Copilot` status bar item appears when editing SQL files — click to open the chat panel.
 
 ---
 
-## Requirements
+## 🚀 Getting Started
 
-| Requirement | Notes |
-|-------------|-------|
-| **Azure Data Studio** ≥ 1.40 | Or VS Code ≥ 1.85 |
-| **GitHub Copilot** extension | For language model access |
-| **GitHub Copilot Chat** extension | Optional — enables `@sql` chat participant |
-| Active **GitHub Copilot subscription** | Required for AI completions |
+### Prerequisites
 
----
+| Requirement | Version | Purpose |
+|-------------|---------|---------|
+| **Azure Data Studio** | ≥ 1.40 | Host application |
+| **GitHub Copilot** extension | Latest | Provides language model API access |
+| **GitHub Copilot subscription** | Active | Required for AI features |
+| **GitHub account** | — | Authentication for chat panel |
 
-## Installation
+> **Note:** The GitHub Copilot Chat extension is **not required** — this extension provides its own dedicated chat interface.
 
-### From VSIX (manual)
-1. Download the latest `.vsix` from the [Releases](https://github.com/RatherFancyCat/ADS-Copilot-Integratioon/releases) page
+### Installation
+
+#### Option 1: From VSIX
+1. Download the latest `.vsix` from [Releases](https://github.com/RatherFancyCat/ADS-Copilot-Integration/releases)
 2. In Azure Data Studio: **File → Install Extension from VSIX…**
 3. Select the downloaded file and restart ADS
 
-### From source
+#### Option 2: From Source
 ```bash
-git clone https://github.com/RatherFancyCat/ADS-Copilot-Integratioon.git
+git clone https://github.com/RatherFancyCat/ADS-Copilot-Integration.git
 cd ADS-Copilot-Integratioon
 npm install
 npm run compile
-npx vsce package
+npm run package
 ```
-Then install the generated `.vsix` as above.
+Then install the generated `.vsix` file as described above.
+
+### First-Time Setup
+
+1. Open Azure Data Studio with a SQL file
+2. Click the **Copilot** icon in the activity bar (left sidebar)
+3. Click **Sign in with GitHub** in the chat panel
+4. Select your preferred AI model from the dropdown
+5. Start chatting or use inline completions!
 
 ---
 
-## Extension Settings
+## ⚙️ Configuration
+
+Configure the extension via **File → Preferences → Settings** (search for "ads-copilot"):
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `ads-copilot.enable` | `true` | Master switch for the extension |
+| `ads-copilot.enable` | `true` | Master toggle for all features |
 | `ads-copilot.inlineCompletions` | `true` | Enable inline ghost-text completions |
-| `ads-copilot.includeSchemaContext` | `true` | Inject active DB schema into prompts |
-| `ads-copilot.codeLens` | `true` | Show Copilot CodeLens above SQL statements |
-| `ads-copilot.model` | `gpt-4o` | Preferred language model |
-| `ads-copilot.maxTokens` | `1024` | Max completion tokens (UI only; model-enforced at runtime) |
-| `ads-copilot.logLevel` | `info` | Log verbosity (`error`/`warn`/`info`/`debug`) |
+| `ads-copilot.includeSchemaContext` | `true` | Include database schema in AI prompts |
+| `ads-copilot.codeLens` | `true` | Show CodeLens actions above SQL statements |
+| `ads-copilot.model` | `gpt-4o` | Default language model (can override in chat UI) |
+| `ads-copilot.maxTokens` | `1024` | Maximum tokens for completions |
+| `ads-copilot.logLevel` | `info` | Logging verbosity (`error`/`warn`/`info`/`debug`) |
 
 ---
 
-## Keyboard Shortcuts
+## 🎯 Usage Examples
 
-| Shortcut | Command |
-|----------|---------|
-| `Ctrl+Shift+I` / `Cmd+Shift+I` | Open Copilot Chat panel |
-| `Ctrl+Shift+E` / `Cmd+Shift+E` | Explain selected query |
+### Generate SQL from Description
+1. Run **ADS Copilot: Generate SQL from Description** from the Command Palette (`F1`)
+2. Enter: _"List all orders from the last 30 days with customer name and total amount"_
+3. The generated SQL is automatically inserted at your cursor
+
+### Fix a Query with Error Context
+1. Select a broken SQL query
+2. Run **ADS Copilot: Fix SQL Error**
+3. Paste the error message from the Messages panel (optional)
+4. Review the fixed query and insert it
+
+### Interactive Chat Session
+1. Open the Copilot panel from the activity bar
+2. Ask: _"How can I optimize this query for better index usage?"_
+3. Add your query to the chat with `Ctrl+Shift+/`
+4. Review suggestions and click **Insert** to apply changes
 
 ---
 
-## How It Works
+## 🏗️ Architecture
 
+```mermaid
+graph TB
+    A[SQL Editor] -->|Text Changes| B[InlineCompletionProvider]
+    A -->|Right-Click| C[Context Menu]
+    D[Activity Bar] -->|Click| E[SidePanelProvider]
+    F[Object Explorer] -->|Connection Info| G[ConnectionManager]
+    
+    B --> H[LmService]
+    C --> H
+    E --> H
+    G --> H
+    
+    H -->|vscode.lm API| I[GitHub Copilot Service]
+    I -->|Streaming Response| H
+    
+    J[SqlCodeLensProvider] -->|Decorations| A
+    K[Status Bar] -->|Click| E
+    
+    style E fill:#f9f,stroke:#333,stroke-width:2px
+    style H fill:#bbf,stroke:#333,stroke-width:2px
+    style I fill:#bfb,stroke:#333,stroke-width:2px
 ```
-┌─────────────────────────────────────────────┐
-│              Azure Data Studio               │
-│                                              │
-│  SQL Editor  ──── Inline Completion ─────┐  │
-│                   Provider               │  │
-│  Object Explorer ─ ConnectionManager ────┤  │
-│  (schema metadata)                       │  │
-│                                          ▼  │
-│                              LmService       │
-│                         (vscode.lm API)      │
-│                               │             │
-│                               ▼             │
-│                    GitHub Copilot LLM        │
-│                    (GPT-4o / GPT-4 / etc.)   │
-└─────────────────────────────────────────────┘
-```
 
-1. **InlineCompletionProvider** — listens to the SQL editor, builds a prompt from the document prefix/suffix and optional schema context, calls the LM, and returns a ghost-text suggestion.
-2. **ConnectionManager** — wraps the `azdata.connection` API to provide the active server/database name and table metadata for schema-aware prompts.
-3. **LmService** — thin wrapper around `vscode.lm.selectChatModels()` + `model.sendRequest()` that constructs SQL-expert system prompts and streams responses.
-4. **ChatParticipant** — registers `@sql` in the Copilot Chat panel with slash commands.
-5. **ChatPanel** — standalone WebView chat UI, activated by `ads-copilot.openChat`.
-6. **SqlCodeLensProvider** — adds per-statement Explain / Optimise / Fix actions in the gutter.
+### Components
+
+1. **InlineCompletionProvider** — Monitors SQL editor, builds context-aware prompts, returns ghost-text suggestions
+2. **SidePanelProvider** — WebView-based chat interface with GitHub auth, model selection, and conversation history
+3. **ConnectionManager** — Wraps `azdata.connection` API to extract active database schema metadata
+4. **LmService** — Central service that interfaces with VS Code's Language Model API (`vscode.lm`)
+5. **SqlCodeLensProvider** — Injects Explain/Optimize/Fix actions above SQL statements
+6. **ChatPanel** — Alternative panel-based chat UI (legacy, less featured than side panel)
+
+### Supported Languages
+- `sql` (T-SQL, SQL Server)
+- `pgsql` (PostgreSQL)
+- `mysql` (MySQL/MariaDB)
 
 ---
 
-## Contributing
+## 🔧 Development
 
-Issues and pull requests are welcome at [RatherFancyCat/ADS-Copilot-Integratioon](https://github.com/RatherFancyCat/ADS-Copilot-Integratioon).
-
+### Setup
 ```bash
-# Development setup
-npm install
-npm run watch        # TypeScript watch mode
-# Open in VS Code / ADS and press F5 to launch Extension Host
+npm install          # Install dependencies
+npm run compile      # Compile TypeScript
+npm run watch        # Watch mode for development
+```
+
+### Testing
+```bash
+npm test            # Run unit tests
+```
+
+### Debugging
+1. Open the project in VS Code or Azure Data Studio
+2. Press `F5` to launch the Extension Development Host
+3. Set breakpoints in `src/` files
+4. Check the **Output** panel → **GitHub Copilot for ADS** for logs
+
+### Project Structure
+```
+src/
+├── extension.ts              # Extension activation & command registration
+├── managers/
+│   ├── connectionManager.ts  # Database connection & schema context
+│   └── lmService.ts          # Language Model API wrapper
+├── providers/
+│   ├── chatParticipant.ts    # Chat participant (no-op in ADS)
+│   ├── codeLensProvider.ts   # CodeLens actions above SQL statements
+│   └── inlineCompletionProvider.ts # Ghost text completions
+├── ui/
+│   ├── chatPanel.ts          # Standalone chat panel
+│   └── sidePanelProvider.ts  # Activity bar WebView chat
+└── utils/
+    ├── config.ts             # Configuration helpers
+    ├── logger.ts             # Logging infrastructure
+    └── sqlUtils.ts           # SQL parsing utilities
 ```
 
 ---
 
-## License
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit issues and pull requests at [RatherFancyCat/ADS-Copilot-Integration](https://github.com/RatherFancyCat/ADS-Copilot-Integration).
+
+### Guidelines
+- Follow the existing code style (TypeScript with strict mode)
+- Add tests for new features
+- Update documentation as needed
+- Ensure `npm run compile` succeeds without errors
+
+---
+
+## 📄 License
 
 MIT — see [LICENSE](LICENSE) for details.
+
+---
+
+## ❓ FAQ
+
+**Q: Why isn't the `@sql` chat participant working?**  
+A: Azure Data Studio is based on VS Code 1.82, which doesn't include the `vscode.chat` API (introduced in VS Code 1.86). Use the dedicated activity bar chat panel instead.
+
+**Q: Do I need GitHub Copilot Chat?**  
+A: No, this extension provides its own chat interface. GitHub Copilot (the base extension) is required for language model access.
+
+**Q: How do I change the AI model?**  
+A: Open the Copilot side panel and use the model selector dropdown at the top.
+
+**Q: Why aren't inline completions appearing?**  
+A: Ensure `ads-copilot.inlineCompletions` is enabled, you're signed in to GitHub Copilot, and you're editing a SQL file.
+
+**Q: Can I use this with VS Code?**  
+A: You can... but why would you use this version in specific for VS Code? 
