@@ -2,6 +2,11 @@
  * SQL utility helpers used by multiple providers.
  */
 
+/** Extract the filename (basename) from a full file path. */
+export function basename(filePath: string): string {
+    return filePath.split(/[\\/]/).pop() ?? 'query.sql';
+}
+
 /** Remove SQL line comments (--) and block comments (/* *\/) from a string. */
 export function stripComments(sql: string): string {
     // Remove block comments

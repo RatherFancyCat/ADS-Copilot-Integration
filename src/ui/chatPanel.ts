@@ -29,7 +29,7 @@ export class ChatPanel implements vscode.Disposable {
         private readonly _connectionManager: ConnectionManager
     ) {
         this._panel = panel;
-        this._panel.webview.html = this._buildHtml();
+        this._panel.webview.html = this._buildHtml(this._panel.webview);
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
         this._panel.webview.onDidReceiveMessage(
             (msg) => this._handleMessage(msg),
@@ -116,12 +116,13 @@ export class ChatPanel implements vscode.Disposable {
         }
     }
 
-    private _buildHtml(): string {
+    private _buildHtml(webview: vscode.Webview): string {
         return /* html */ `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <base href="${webview.cspSource}">
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline';">
   <title>Copilot Chat</title>
